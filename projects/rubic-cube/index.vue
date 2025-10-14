@@ -1,4 +1,7 @@
 <template>
+    <!-- <Teleport defer to="#project-title">
+        <h2>Interactive Rubic Cube Example</h2>
+    </Teleport> -->
     <template v-for="cubicMesh in cubicMeshs">
         <primitive :object="cubicMesh" :dispose="true" />
     </template>
@@ -8,6 +11,10 @@ import { ref } from 'vue'
 import { BoxGeometry, Mesh, MeshBasicMaterial, Color, Float32BufferAttribute, Vector2, Vector3, Raycaster, MathUtils, Quaternion } from 'three'
 import { useRenderLoop, useTresContext } from '@tresjs/core'
 import { rotateAboutPoint } from '../utils.js'
+import useStatsViewer from '~/composables/useStatsViewer.ts'
+
+const {beginStats, endStats} = useStatsViewer()
+
 
 const CUBIC_COLOR_ENUM = ['red', 'green', 'blue', 'yellow', 'orange', 'purple']
 const CUBIC_DIRECTION_ENUM = ['up', 'down', 'left', 'right', 'front', 'back']
@@ -40,6 +47,7 @@ const { camera, scene, renderer } = useTresContext()
 camera.value.position.set(100,100,100)
 
 onLoop(({ delta, elapsed, clock }) => {
+    beginStats()
     raycaster.setFromCamera( mousePointer, camera.value );
     const intersects = raycaster.intersectObjects( scene.value.children );
 	for ( let i = 0; i < intersects.length; i ++ ) {
@@ -54,6 +62,7 @@ onLoop(({ delta, elapsed, clock }) => {
     //     })
     //     console.log(targetRotation)
     // }, 100)
+    endStats()
 })
 
 function onPointerDown( event ) {
@@ -151,11 +160,6 @@ function getCubicColor(facesColor){
     return colorBufferAttribute
 
 }
-
-// function onPointerMove( event ) {
-//     mousePointer.x = ( event.clientX / window.innerWidth ) * 2 - 1;
-//     mousePointer.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
-// }
 
 
 
