@@ -4,3 +4,6 @@ export async function getFoldersFromPattren() {
         {eager: true,}
     );         
 }
+export function _l(...args: any[]){
+    console.log(...args)
+}
