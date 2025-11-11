@@ -8,10 +8,11 @@
 </template>
 <script setup async>
 import { ref } from 'vue'
-import { BoxGeometry, Mesh, MeshBasicMaterial, Color, Float32BufferAttribute, Vector2, Vector3, Raycaster, MathUtils, Quaternion } from 'three'
+import { BoxGeometry, Mesh, MeshBasicMaterial, Color, Float32BufferAttribute, Vector2, Vector3, Raycaster, MathUtils, Quaternion, Box3 } from 'three'
 import { useRenderLoop, useTresContext } from '@tresjs/core'
 import { rotateAboutPoint } from '../utils.js'
 import useStatsViewer from '~/composables/useStatsViewer.ts'
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js"
 
 const {beginStats, endStats} = useStatsViewer()
 
@@ -22,6 +23,7 @@ const CUBIC_DIRECTION_OFFSET = [[0,1,0], [0,-1,0], [-1,0,0], [1,0,0], [0,0,-1], 
 
 
 let cubicMeshs = []
+let cubicMeshsBB = []
 let cubeSections = {
     oneface: [0, 1, 2, 3, 4, 5],
     twofaces: [[0,2], [0,3], [0,4], [0,5], [1,2], [1,3], [1,4], [1,5], [2,4], [2,5], [3,4], [3,5]],
@@ -50,20 +52,29 @@ onLoop(({ delta, elapsed, clock }) => {
     beginStats()
     raycaster.setFromCamera( mousePointer, camera.value );
     const intersects = raycaster.intersectObjects( scene.value.children );
-	for ( let i = 0; i < intersects.length; i ++ ) {
-		// intersects[ i ].object.material.color.set( 0xff0000 );
-        // intersects[ i ].object.rotation.y += ( targetRotation -  intersects[ i ].object.rotation.y ) * 0.05; 
-        // console.log( intersects[ i ].object.position )
-	}
-    // setInterval(()=> {
-    //     cubicMeshs.forEach((cubicMesh) => {
-    //         let newRotationDegree = (( targetRotation - cubicMesh.rotation.y ) * 0.05 )
-    //         rotateAboutPoint(cubicMesh, new Vector3(0, 0, 0), new Vector3(0, 1, 0), newRotationDegree)
-    //     })
-    //     console.log(targetRotation)
-    // }, 100)
+
+    cubicMeshs.forEach((cubicMesh) => {
+        // const collisionedMeshIndex = cubicMeshs.findIndex((cm) => cm.uuid === cubicMeshBB.referenceMeshUuid)
+        if(checkBoundingBoxCollision(intersectorYMesh,cubicMesh) || checkBoundingBoxCollision(intersectorXMesh,cubicMesh)){
+            cubicMesh.material.opacity = 0.5;
+            let newRotationDegree = (( targetRotation - cubicMesh.rotation.y ) * 0.05 )
+            rotateAboutPoint(cubicMesh, new Vector3(0, 0, 0), new Vector3(0, 1, 0), newRotationDegree)
+        } 
+    })
     endStats()
 })
+
+function checkBoundingBoxCollision(mesh1, mesh2) {
+  // Update world matrices
+  mesh1.updateMatrixWorld();
+  mesh2.updateMatrixWorld();
+  
+  // Get bounding boxes in world coordinates
+  const box1 = new Box3().setFromObject(mesh1);
+  const box2 = new Box3().setFromObject(mesh2);
+  
+  return box1.intersectsBox(box2);
+}
 
 function onPointerDown( event ) {
     pointerXOnPointerDown = event.clientX - windowHalfX;
@@ -98,7 +109,9 @@ Object.keys(cubeSections).forEach((key, i) => {
         if(i === 0){
             let cubicColors = []
             let cubicGeometry = new BoxGeometry(10,10,10).toNonIndexed()
-            let cubicMesh = new Mesh(cubicGeometry, new MeshBasicMaterial({vertexColors:true}))
+            let cubicMesh = new Mesh(cubicGeometry, new MeshBasicMaterial({vertexColors:true, transparent: true}))
+            let cubicMeshBB = new Box3(new Vector3(), new Vector3()).setFromObject(cubicMesh)
+            cubicMeshBB.referenceMeshUuid = cubicMesh.uuid
             cubicColors = getCubicColor(new Array(6).fill(0).map((_, cfi) => cfi === j ? new Color(CUBIC_COLOR_ENUM[j]) : 0))
             cubicGeometry.setAttribute('color', new Float32BufferAttribute(cubicColors, 3));
 
@@ -106,11 +119,14 @@ Object.keys(cubeSections).forEach((key, i) => {
             cubicMesh.position.set(...cubicPosition)
             cubicMesh.rotation.y = Math.PI * 2
             cubicMeshs.push(cubicMesh)
+            cubicMeshsBB.push(cubicMeshBB)
         }
         if(i >= 1){
             let cubicColors = []
             let cubicGeometry = new BoxGeometry(10,10,10).toNonIndexed()
-            let cubicMesh = new Mesh(cubicGeometry, new MeshBasicMaterial({vertexColors:true}))
+            let cubicMesh = new Mesh(cubicGeometry, new MeshBasicMaterial({vertexColors:true, transparent: true}))
+            let cubicMeshBB  = new Box3(new Vector3(), new Vector3()).setFromObject(cubicMesh)
+            cubicMeshBB.referenceMeshUuid = cubicMesh.uuid
             let cubicPosition = new Array(3).fill(0)
             cubeSections[key][j].map((faceDirectionIndex) => {
                 CUBIC_DIRECTION_OFFSET[faceDirectionIndex].map((offsetPositionArray, OffsetPositionindex) => {
@@ -129,11 +145,20 @@ Object.keys(cubeSections).forEach((key, i) => {
             cubicMesh.position.set(...cubicPosition)
             cubicMesh.rotation.y = Math.PI * 2
             cubicMeshs.push(cubicMesh)
+            cubicMeshsBB.push(cubicMeshBB)
         }
     }
-    
-
 })
+
+let intersectorYGeom = new BoxGeometry(4,32,32)
+let intersectorXGeom = new BoxGeometry(32,4,32)
+
+let intersectorYMesh = new Mesh(intersectorYGeom, new MeshBasicMaterial({color:'red'}))
+let intersectorXMesh = new Mesh(intersectorXGeom, new MeshBasicMaterial({color:'red'}))
+
+
+
+
 
 
 function getCubicColor(facesColor){
