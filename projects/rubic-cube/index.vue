@@ -3,7 +3,7 @@
         <h2>Interactive Rubic Cube Example</h2>
     </Teleport> -->
     <template v-for="cubicMesh in cubicMeshs">
-        <primitive :object="cubicMesh" :dispose="true" />
+        <primitive :object="cubicMesh"/>
     </template>
 </template>
 <script setup async>
@@ -11,16 +11,19 @@ import { ref } from 'vue'
 import { BoxGeometry, Mesh, MeshBasicMaterial, Color, Float32BufferAttribute, Vector2, Vector3, Raycaster, MathUtils, Quaternion, Box3 } from 'three'
 import { useRenderLoop, useTresContext } from '@tresjs/core'
 import { rotateAboutPoint } from '../utils.js'
+import { _l } from '../utils.ts'
 import useStatsViewer from '~/composables/useStatsViewer.ts'
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js"
 
 const {beginStats, endStats} = useStatsViewer()
 
-
 const CUBIC_COLOR_ENUM = ['red', 'green', 'blue', 'yellow', 'orange', 'purple']
 const CUBIC_DIRECTION_ENUM = ['up', 'down', 'left', 'right', 'front', 'back']
 const CUBIC_DIRECTION_OFFSET = [[0,1,0], [0,-1,0], [-1,0,0], [1,0,0], [0,0,-1], [0,0,1]]
 
+onUnmounted(()=> {
+    cubicMeshs.forEach((cm) => dispose(cm))
+})
 
 let cubicMeshs = []
 let cubicMeshsBB = []
