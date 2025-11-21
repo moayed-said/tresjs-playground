@@ -10,7 +10,7 @@
 import { ref } from 'vue'
 import { BoxGeometry, Mesh, MeshBasicMaterial, Color, Float32BufferAttribute, Vector2, Vector3, Raycaster, MathUtils, Quaternion, Box3 } from 'three'
 import { useRenderLoop, useTresContext, dispose} from '@tresjs/core'
-import { rotateAboutPoint } from '../utils.js'
+import { rotateAboutPoint } from '../utils.ts'
 import { _l } from '../utils.ts'
 import useStatsViewer from '~/composables/useStatsViewer.ts'
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js"
@@ -37,8 +37,10 @@ let cubeSections = {
 const windowHalfX = window.innerWidth / 2;
 const windowHalfY =  window.innerHeight / 2;
 
-let mousePointer = new Vector2()
-let raycaster = new Raycaster()
+let mousePointerClicked = new Vector2()
+let mousePointerHover = new Vector2()
+let raycasterOnClicked = new Raycaster()
+let raycasterOnHover = new Raycaster()
 
 let targetRotation = 0;
 let targetRotationOnPointerDown = 0;
@@ -54,17 +56,34 @@ camera.value.position.set(100,100,100)
 
 onLoop(({ delta, elapsed, clock }) => {
     beginStats()
-    raycaster.setFromCamera( mousePointer, camera.value );
-    const intersects = raycaster.intersectObjects( scene.value.children );
+    raycasterOnHover.setFromCamera( mousePointerHover, camera.value );
+    const intersectsOnHover = raycasterOnHover.intersectObjects( scene.value.children );
 
-    cubicMeshs.forEach((cubicMesh) => {
-        // const collisionedMeshIndex = cubicMeshs.findIndex((cm) => cm.uuid === cubicMeshBB.referenceMeshUuid)
-        if(checkBoundingBoxCollision(intersectorYMesh,cubicMesh) || checkBoundingBoxCollision(intersectorXMesh,cubicMesh)){
-            cubicMesh.material.opacity = 0.5;
-            let newRotationDegree = (( targetRotation - cubicMesh.rotation.y ) * 0.05 )
-            rotateAboutPoint(cubicMesh, new Vector3(0, 0, 0), new Vector3(0, 1, 0), newRotationDegree)
-        } 
-    })
+    if(intersectsOnHover.length > 0){ 
+        let cubicPositionOffset = Object.values(intersectsOnHover[0].object.position).map((a) => a > 0 ? 1: a === 0 ? 0 : -1 )
+        intersectorYMesh.position.x = 10 * cubicPositionOffset[0]
+        intersectorXMesh.position.y = 10 * cubicPositionOffset[1]
+
+    }
+
+    raycasterOnClicked.setFromCamera( mousePointerClicked, camera.value );
+    const intersectsOnClicked = raycasterOnHover.intersectObjects( scene.value.children );
+
+    if(intersectsOnClicked.length > 0){ 
+
+        cubicMeshs.forEach((cubicMesh) => {
+           // const collisionedMeshIndex = cubicMeshs.findIndex((cm) => cm.uuid === cubicMeshBB.referenceMeshUuid)
+           if(checkBoundingBoxCollision(intersectorYMesh, cubicMesh) || checkBoundingBoxCollision(intersectorXMesh, cubicMesh) ){
+               cubicMesh.material.opacity = 0.5;
+               let newRotationDegree = (( targetRotation - cubicMesh.rotation.y ) * 0.05 )
+               rotateAboutPoint(cubicMesh, new Vector3(0, 0, 0), new Vector3(0, 1, 0), newRotationDegree)
+               _l(targetRotation)
+           } else {
+               cubicMesh.material.opacity = 1
+           }
+       })
+    }
+      
     endStats()
 })
 
@@ -90,23 +109,27 @@ function onPointerDown( event ) {
 }
 
 function onPointerMove( event ) {
-    mousePointer.x = ( event.clientX / window.innerWidth ) * 2 - 1;
-    mousePointer.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+    mousePointerClicked.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+    mousePointerClicked.y = -( event.clientY / window.innerHeight ) * 2 + 1;
 
     pointerX = event.clientX - windowHalfX;
 
     targetRotation = targetRotationOnPointerDown + ( pointerX - pointerXOnPointerDown ) * 0.02;
 
 }
-
 function onPointerUp( event ) {
     isPointerDown= false;
     document.removeEventListener( 'pointermove', onPointerMove );
     document.removeEventListener( 'pointerup', onPointerUp );
 
 }
+function onPointerHoverMove(event) {
+    mousePointerHover.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+    mousePointerHover.y = -( event.clientY / window.innerHeight ) * 2 + 1;
+}
 
 window.addEventListener( 'pointerdown', onPointerDown );
+window.addEventListener('mousemove', onPointerHoverMove, false);
 
 Object.keys(cubeSections).forEach((key, i) => {
     for(let j = 0 ; j < cubeSections[key].length; j++){
@@ -159,10 +182,6 @@ let intersectorXGeom = new BoxGeometry(32,4,32)
 
 let intersectorYMesh = new Mesh(intersectorYGeom, new MeshBasicMaterial({color:'red'}))
 let intersectorXMesh = new Mesh(intersectorXGeom, new MeshBasicMaterial({color:'red'}))
-
-
-
-
 
 
 function getCubicColor(facesColor){

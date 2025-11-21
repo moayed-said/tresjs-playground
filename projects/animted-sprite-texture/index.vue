@@ -5,15 +5,14 @@
             v-bind="runnerTexture"
             transparent="true"
             :side="DoubleSide"
-            v-log:material
               />
     </TresMesh>
 </template>
 <script setup>
   import { watchEffect, toRaw, onMounted, defineOptions } from 'vue';
   import { TextureLoader, DoubleSide, RepeatWrapping, Vector3 , MathUtils } from 'three'
-  import { useTexture, vLog, useLoader, useLoop, useRenderLoop } from '@tresjs/core'
-  import { TextureAnimator, rotateAboutPoint } from '../utils.js'
+  import { useTexture, useLoader, useLoop, useRenderLoop } from '@tresjs/core'
+  import { TextureAnimator, rotateAboutPoint } from '../utils.ts'
   const runningPlaneAnimted = ref(null)
 
   defineOptions({
